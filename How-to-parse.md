@@ -41,6 +41,9 @@ Conclusion: I'll try 1 fist, 2 if 1 does not work out and afterwards try 3 to st
 ## Todo
 
 * Get correct data from server
+  * Update: all nice parsing hinted above was circumvented and quick hacks to get data are implemented.
+  * Check if column contains `"waste_type"` (with quotation marks), that row contains the type
+  * The next row with a dot contains the date
 * Parse data correctly into struct
   * define that struct. Unixtime and color?
 * Get time and keep it
