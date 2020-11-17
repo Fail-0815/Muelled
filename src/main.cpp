@@ -33,11 +33,13 @@ void setup() {
   Serial.println("IP address:");
   Serial.println(WiFi.localIP());
   Serial.println();
+  setup_abfall(host, fingerprint, street_id);
 }
 
 void loop() {
   if(data_needed){
-    updateEEPROM(host, fingerprint, street_id);
+    abfalltermin x = next_termin();
+    Serial.println(String(x.date) + String(x.type));
     data_needed = false;
   }
   delay(5000);
