@@ -13,6 +13,11 @@ void Abfallplan::setup_abfall(const char* hostname, const uint8_t* ssl_fingerpri
   Serial.println("Counter on startup: " + String(counter));
 }
 
+void Abfallplan::setup_abfall(const char* host, const uint8_t* fingerprint, const char* street_id, const char* waste_filter){
+  wastefilter = waste_filter;
+  setup_abfall(host, fingerprint, street_id);
+}
+
 time_t Abfallplan::epoch_from_date(String date){
   time_t result = 0;
   TimeElements Time;
@@ -26,9 +31,50 @@ time_t Abfallplan::epoch_from_date(String date){
   return result;
 }
 
-void Abfallplan::updateEEPROM(){
-  const char* wastefilter = "&filter_waste%3Alist=137&filter_waste%3Alist=138&filter_waste%3Alist=139&filter_waste%3Alist=148&filter_waste%3Alist=136&filter_waste%3Alist=140&filter_waste%3Alist=141";
+abfalltype Abfallplan::char_to_abfalltype(char input){
+  abfalltype ret = 0;
+  switch (input){
+    case 'P': // Altpapier, theoretisch auch Sperrmüll, wird aber durch die Filter in der Abfrage ignoriert (Müsste vorher eh angemeldet werden)
+      ret = 0b00000001;
+      break;
+    case 'A': // Sonderabfall. IdR nicht abgefragt (Ohnehin fester Termin in Mdmaburg)
+      ret = 0b00000010;
+      break;
+    case 'B': // Weihnachtsbaum.
+      ret = 0b00000100;
+      break;
+    case '"': // Restmüll (2 wöchentlich)
+      ret = 0b00001000;
+      break;
+    case '4': // Restmüll (4 wöchentlich)
+      ret = 0b00010000;
+      break;
+    case 'i': // Biomüll
+      ret = 0b00100000;
+      break;
+    case 'S': // Gelber Sack
+      ret = 0b01000000;
+      break;
+    case 'R': // Grünschnitt. IdR nicht abgefragt.
+      ret = 0b10000000;
+      break;
+    default:
+      ret = 0;
+      Serial.println("Strange input recieved: " + String(input));
+  }
+  return ret;
+}
 
+time_t Abfallplan::read_date_at_offset(int offset){
+  time_t epochdate = 0;
+  for(unsigned int i = 0; i < sizeof(time_t); i++){
+    uint8_t temp = EEPROM.read(offset + 1 + i);
+    epochdate += ((time_t) temp) << (i * 8);
+  }
+  return epochdate;
+}
+
+void Abfallplan::updateEEPROM(){
   Serial.println("updateEEPROM called");
   WiFiClientSecure client;
   client.setFingerprint(fingerprint);
@@ -58,10 +104,9 @@ void Abfallplan::updateEEPROM(){
     if (foundType > 0 && (output.indexOf('.') >= 0)){
       // The next line containg a dot after a waste_type will be the date
       time_t epochdate = epoch_from_date(output.substring(10,20));
-      Serial.println(epochdate, 16);
       tmpcount -= 1;
       uint8_t offset = tmpcount * (1 + sizeof(time_t)) + 1;
-      EEPROM.write(offset, (uint8_t) foundType);
+      EEPROM.write(offset, (uint8_t) char_to_abfalltype(foundType));
       for(unsigned int i = 0; i < sizeof(time_t); i++){
         uint8_t tmp = epochdate >> (i * 8);
         EEPROM.write(offset + 1 + i, tmp);
@@ -85,12 +130,9 @@ abfalltermin Abfallplan::next_termin(){
   uint8_t offset = (counter-1) * (1 + sizeof(time_t)) + 1; // 1 byte type, 10 bytes date (Strings in EEPROM are NOT \0 terminated) plus 1 for the counter byte in the beginning
   //Serial.println("Reading from Slot: " + String(counter - 1));
   abfalltermin output;
-  output.type = EEPROM.read(offset);
-  time_t epochdate = 0;
-  for(unsigned int i = 0; i < sizeof(time_t); i++){
-    uint8_t temp = EEPROM.read(offset + 1 + i);
-    epochdate += ((time_t) temp) << (i * 8);
-  }
-  output.date = epochdate;
+  uint8_t temptype = EEPROM.read(offset);
+  output.type = temptype;
+  output.date = read_date_at_offset(offset);
+  for(int i = 1; i <= counter; )
   return output;
 }
