@@ -45,7 +45,9 @@ Conclusion: I'll try 1 fist, 2 if 1 does not work out and afterwards try 3 to st
   * Check if column contains `"waste_type"` (with quotation marks), that row contains the type
   * The next row with a dot contains the date
 * Parse data correctly into struct
-  * define that struct. Unixtime and color?
-* Get time and keep it
+  * define that struct. Date (at the moment: String), waste type (byte)
+* Get time and keep it (NTPClient should do that for me)
 * Check if currently awaited
-* Put the next (several?) times and colors which need to be shown in the EEPROM (persist power drops and network outages!)
+  * Check if current time + 24 hours is greated than next day from abfallplan
+* Put the next (several?) times and colors which need to be shown
+* Disable WiFi while not in use?
